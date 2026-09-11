@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>JARVIS WORLD RADAR</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root { --c:#00d4ff; --m:#ff007f; --o:#ff9d00; --bg:#010208; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:#fff; font-family:"Share Tech Mono",monospace;
+  height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+header { padding:10px 20px; border-bottom:1px solid rgba(0,212,255,0.2);
+  display:flex; justify-content:space-between; align-items:center; }
+.logo { font-family:"Orbitron"; font-size:0.75rem; letter-spacing:6px; color:var(--c); }
+#map-wrap { flex:1; position:relative; overflow:hidden; }
+#world-svg { width:100%; height:100%; }
+#news-panel { position:absolute; right:10px; top:10px; width:260px;
+  background:rgba(4,12,30,0.95); border:1px solid rgba(0,212,255,0.2);
+  padding:12px; max-height:calc(100vh - 80px); overflow-y:auto; }
+.np-title { font-family:"Orbitron"; font-size:0.55rem; color:var(--c);
+  letter-spacing:3px; margin-bottom:10px; }
+.news-item { border-left:2px solid var(--o); padding:6px 8px; margin-bottom:8px;
+  font-size:0.65rem; color:#c8e6f0; cursor:pointer; transition:all 0.2s; }
+.news-item:hover { background:rgba(0,212,255,0.05); }
+.ni-source { color:var(--o); font-size:0.55rem; margin-top:3px; }
+.hotspot { cursor:pointer; transition:all 0.3s; }
+.hotspot circle { fill:rgba(255,157,0,0.3); stroke:var(--o); stroke-width:1.5; }
+.hotspot:hover circle { fill:rgba(255,157,0,0.6); }
+#status-bar { padding:6px 20px; font-size:0.6rem; color:rgba(0,212,255,0.5);
+  border-top:1px solid rgba(0,212,255,0.1); }
+.back-btn { font-family:"Orbitron"; font-size:0.55rem; color:var(--c);
+  border:1px solid rgba(0,212,255,0.3); padding:4px 12px; cursor:pointer;
+  text-decoration:none; letter-spacing:2px; }
+.back-btn:hover { background:rgba(0,212,255,0.1); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">JARVIS WORLD RADAR</div>
+  <a href="/" class="back-btn">&#8592; ZURUECK</a>
+</header>
+
+<div id="map-wrap">
+  <svg id="world-svg" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1000" height="500" fill="#010208"/>
+    <!-- Vereinfachte Kontinente -->
+    <!-- Nord-Amerika -->
+    <path d="M 130 80 L 240 60 L 280 100 L 260 180 L 220 220 L 180 200 L 140 160 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+    <!-- Sued-Amerika -->
+    <path d="M 190 240 L 250 230 L 270 280 L 250 360 L 210 380 L 185 340 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+    <!-- Europa -->
+    <path d="M 440 60 L 530 50 L 550 100 L 510 130 L 460 120 L 430 90 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+    <!-- Afrika -->
+    <path d="M 450 140 L 530 130 L 560 200 L 530 310 L 480 320 L 440 260 L 440 180 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+    <!-- Asien -->
+    <path d="M 550 50 L 820 40 L 850 120 L 800 180 L 700 200 L 600 170 L 550 120 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+    <!-- Australien -->
+    <path d="M 740 280 L 840 270 L 860 330 L 820 360 L 760 350 L 730 320 Z"
+          fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1"/>
+
+    <!-- Gitter-Linien -->
+    <line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(0,212,255,0.08)" stroke-width="1"/>
+    <line x1="500" y1="0" x2="500" y2="500" stroke="rgba(0,212,255,0.08)" stroke-width="1"/>
+
+    <!-- Bekannte Hotspots -->
+    <g class="hotspot" onclick="showInfo('Berlin','Deutschland','Standort')">
+      <circle cx="488" cy="82" r="5" class="pulse-dot"/>
+      <text x="492" y="78" fill="var(--c)" font-size="8" font-family="Share Tech Mono">DE</text>
+    </g>
+    <g class="hotspot" onclick="showInfo('Bruessel','EU-Zentrum','Institutionen')">
+      <circle cx="472" cy="84" r="4"/>
+      <text x="440" y="80" fill="rgba(0,212,255,0.7)" font-size="7" font-family="Share Tech Mono">EU</text>
+    </g>
+
+    <defs>
+      <style>
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{r:5;opacity:0.8} 50%{r:8;opacity:1} }
+      </style>
+    </defs>
+  </svg>
+
+  <div id="news-panel">
+    <div class="np-title">WELT-RADAR</div>
+    <div id="news-list">
+      <div style="color:rgba(0,212,255,0.4);font-size:0.7rem;">Lade Nachrichten...</div>
+    </div>
+  </div>
+</div>
+
+<div id="status-bar" id="map-status">RADAR AKTIV &nbsp;|&nbsp;
+  <span id="last-update">—</span></div>
+
+<script>
+async function loadNews() {
+  try {
+    const r = await fetch('/api/worldnews');
+    const d = await r.json();
+    const list = document.getElementById('news-list');
+    list.innerHTML = '';
+    for (const item of (d.news || [])) {
+      const div = document.createElement('div');
+      div.className = 'news-item';
+      div.innerHTML = `<div>${item.title}</div><div class="ni-source">${item.source} | ${item.time}</div>`;
+      div.onclick = () => window.open(item.url || '#', '_blank');
+      list.appendChild(div);
+    }
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('de-DE');
+  } catch(e) {
+    document.getElementById('news-list').innerHTML =
+      '<div style="color:rgba(255,157,0,0.7);font-size:0.7rem;">Nachrichten offline.<br>Internet-Verbindung pruefen.</div>';
+  }
+}
+function showInfo(city, country, type) {
+  alert(`${city} | ${country} | ${type}`);
+}
+loadNews();
+setInterval(loadNews, 300000);
+</script>
+</body>
+</html>

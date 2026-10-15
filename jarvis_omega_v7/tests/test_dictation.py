@@ -46,6 +46,7 @@ class DictationConfigTests(unittest.TestCase):
         self.assertTrue(origin_matches_request(None, "http://127.0.0.1:8000/api/dictation/transcribe"))
         self.assertFalse(origin_matches_request("https://example.com", "http://127.0.0.1:8000/api/dictation/transcribe"))
         self.assertFalse(origin_matches_request("http://127.0.0.1:8001", "http://127.0.0.1:8000/api/dictation/transcribe"))
+        self.assertFalse(origin_matches_request("https://evil.example", "https://evil.example/api/dictation/transcribe"))
 
     def test_audio_extensions_are_explicit(self):
         self.assertIn(".wav", ALLOWED_SUFFIXES)

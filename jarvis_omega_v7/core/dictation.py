@@ -14,8 +14,8 @@ from typing import Annotated, Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 log = logging.getLogger("jarvis.dictation")
 router = APIRouter(tags=["local-dictation"])

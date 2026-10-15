@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import PlainTextResponse
 
 log = logging.getLogger("jarvis.dictation")
 router = APIRouter(tags=["local-dictation"])
@@ -26,6 +27,30 @@ _MODEL_LOCK = threading.Lock()
 _INFERENCE_LOCK = threading.Lock()
 _MODEL: Any = None
 _MODEL_PATH: str | None = None
+
+
+class DictationContentLengthGuard:
+    """Reject oversized declared uploads before FastAPI parses multipart bodies."""
+
+    def __init__(self, app: Any):
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope.get("type") == "http" and scope.get("path") == "/api/dictation/transcribe":
+            headers = {key.lower(): value for key, value in scope.get("headers", [])}
+            raw_length = headers.get(b"content-length")
+            if raw_length:
+                try:
+                    content_length = int(raw_length)
+                except ValueError:
+                    response = PlainTextResponse("Invalid Content-Length header.", status_code=400)
+                    await response(scope, receive, send)
+                    return
+                if content_length > MAX_AUDIO_BYTES + (1024 * 1024):
+                    response = PlainTextResponse("Audio request exceeds the upload limit.", status_code=413)
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
 
 
 class DictationStatus(BaseModel):

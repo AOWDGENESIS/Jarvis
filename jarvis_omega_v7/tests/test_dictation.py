@@ -11,8 +11,8 @@ from fastapi.testclient import TestClient
 
 from core.dictation import (
     ALLOWED_SUFFIXES,
-    DictationContentLengthGuard,
     MAX_AUDIO_BYTES,
+    DictationContentLengthGuard,
     DictationStatus,
     _run_transcription,
     configured_model_dir,

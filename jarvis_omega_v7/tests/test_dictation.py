@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from types import SimpleNamespace
-from core.dictation import ALLOWED_SUFFIXES, _run_transcription, configured_model_dir, get_status
+from core.dictation import ALLOWED_SUFFIXES, _run_transcription, configured_model_dir, get_status, origin_matches_request
 
 
 class DictationConfigTests(unittest.TestCase):
@@ -30,6 +30,12 @@ class DictationConfigTests(unittest.TestCase):
                 status = get_status()
         self.assertFalse(status.available)
         self.assertIn("model.bin", status.reason)
+
+    def test_origin_guard_allows_same_origin_and_non_browser_clients(self):
+        self.assertTrue(origin_matches_request("http://127.0.0.1:8000", "http://127.0.0.1:8000/api/dictation/transcribe"))
+        self.assertTrue(origin_matches_request(None, "http://127.0.0.1:8000/api/dictation/transcribe"))
+        self.assertFalse(origin_matches_request("https://example.com", "http://127.0.0.1:8000/api/dictation/transcribe"))
+        self.assertFalse(origin_matches_request("http://127.0.0.1:8001", "http://127.0.0.1:8000/api/dictation/transcribe"))
 
     def test_audio_extensions_are_explicit(self):
         self.assertIn(".wav", ALLOWED_SUFFIXES)

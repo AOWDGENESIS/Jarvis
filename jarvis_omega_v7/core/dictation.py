@@ -29,17 +29,29 @@ _MODEL: Any = None
 _MODEL_PATH: str | None = None
 
 
-class DictationContentLengthGuard:
-    """Reject oversized declared uploads before FastAPI parses multipart bodies."""
+class DictationRequestGuard:
+    """Restrict dictation endpoints to loopback hosts and reject oversized declared uploads."""
 
     def __init__(self, app: Any):
         self.app = app
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope.get("type") == "http" and scope.get("path") == "/api/dictation/transcribe":
+        if scope.get("type") == "http" and scope.get("path") in {
+            "/api/dictation/status",
+            "/api/dictation/transcribe",
+        }:
             headers = {key.lower(): value for key, value in scope.get("headers", [])}
+            raw_host = headers.get(b"host", b"").decode("ascii", errors="ignore")
+            try:
+                host_name = urlsplit("//" + raw_host).hostname
+            except ValueError:
+                host_name = None
+            if host_name not in {"127.0.0.1", "localhost", "::1"}:
+                response = PlainTextResponse("Dictation endpoints are loopback-only.", status_code=403)
+                await response(scope, receive, send)
+                return
             raw_length = headers.get(b"content-length")
-            if raw_length:
+            if scope.get("path") == "/api/dictation/transcribe" and raw_length:
                 try:
                     content_length = int(raw_length)
                 except ValueError:

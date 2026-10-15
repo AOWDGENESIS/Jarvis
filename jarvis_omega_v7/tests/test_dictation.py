@@ -2,15 +2,21 @@
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
-
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.dictation import ALLOWED_SUFFIXES, DictationStatus, _run_transcription, configured_model_dir, get_status, origin_matches_request, router
+from core.dictation import (
+    ALLOWED_SUFFIXES,
+    DictationStatus,
+    _run_transcription,
+    configured_model_dir,
+    get_status,
+    origin_matches_request,
+    router,
+)
 
 
 class DictationConfigTests(unittest.TestCase):
@@ -35,9 +41,8 @@ class DictationConfigTests(unittest.TestCase):
         self.assertIn("does not exist", status.reason)
 
     def test_model_directory_requires_model_bin(self):
-        with tempfile.TemporaryDirectory() as temp:
-            with patch.dict(os.environ, {"GENESIS_WHISPER_MODEL_DIR": temp}):
-                status = get_status()
+        with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"GENESIS_WHISPER_MODEL_DIR": temp}):
+            status = get_status()
         self.assertFalse(status.available)
         self.assertIn("model.bin", status.reason)
 

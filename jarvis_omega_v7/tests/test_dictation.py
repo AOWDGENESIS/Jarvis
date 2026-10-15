@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from core.dictation import (
     ALLOWED_SUFFIXES,
     MAX_AUDIO_BYTES,
-    DictationContentLengthGuard,
+    DictationRequestGuard,
     DictationStatus,
     _run_transcription,
     configured_model_dir,
@@ -73,7 +73,10 @@ class DictationConfigTests(unittest.TestCase):
         scope = {
             "type": "http",
             "path": "/api/dictation/transcribe",
-            "headers": [(b"content-length", str(MAX_AUDIO_BYTES + 2 * 1024 * 1024).encode())],
+            "headers": [
+                (b"host", b"127.0.0.1:8000"),
+                (b"content-length", str(MAX_AUDIO_BYTES + 2 * 1024 * 1024).encode()),
+            ],
         }
         messages = []
 
@@ -85,6 +88,27 @@ class DictationConfigTests(unittest.TestCase):
 
         asyncio.run(middleware(scope, receive, send))
         self.assertEqual(messages[0]["status"], 413)
+
+    def test_request_guard_rejects_non_loopback_host_for_status(self):
+        async def downstream(scope, receive, send):
+            raise AssertionError("Non-loopback host reached endpoint")
+
+        middleware = DictationRequestGuard(downstream)
+        scope = {
+            "type": "http",
+            "path": "/api/dictation/status",
+            "headers": [(b"host", b"attacker.example")],
+        }
+        messages = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            messages.append(message)
+
+        asyncio.run(middleware(scope, receive, send))
+        self.assertEqual(messages[0]["status"], 403)
 
     def test_endpoint_rejects_cross_origin_upload(self):
         response = self.client.post(

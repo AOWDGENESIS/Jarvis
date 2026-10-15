@@ -791,6 +791,7 @@ select.voice-sel {
   <!-- VOICE BAR -->
   <div id="voicebar">
     <div class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Mikrofon">🎙️</div>
+    <div class="mic-btn" id="local-dictation-btn" onclick="toggleLocalDictation()" title="Lokales Whisper-Diktat" style="font-size:0.9rem;border-color:var(--green);color:var(--green);">W</div>
 
     <div class="voice-center" onclick="focusInput()">
       <div class="voice-prompt" id="voice-prompt">
@@ -1297,6 +1298,95 @@ function toggleMic() {
   }
 }
 
+/* LOCAL WHISPER DICTATION
+   Audio is sent only to this JARVIS instance on 127.0.0.1.
+   The server uses an existing local model and never downloads one. */
+let localDictationRecorder = null;
+let localDictationStream = null;
+let localDictationChunks = [];
+let localDictationBusy = false;
+
+async function toggleLocalDictation() {
+  const btn = document.getElementById('local-dictation-btn');
+  const placeholder = document.getElementById('voice-placeholder');
+  placeholder.style.display = 'inline';
+  document.getElementById('voice-text').style.display = 'none';
+  if (localDictationBusy) return;
+  if (localDictationRecorder && localDictationRecorder.state === 'recording') {
+    localDictationRecorder.stop();
+    btn.classList.remove('listening');
+    btn.textContent = '...';
+    placeholder.textContent = 'LOKALES WHISPER: TRANSKRIBIERE...';
+    localDictationBusy = true;
+    return;
+  }
+  try {
+    const statusResponse = await fetch('/api/dictation/status', {cache: 'no-store'});
+    const status = await statusResponse.json();
+    if (!status.available) {
+      placeholder.textContent = 'WHISPER NICHT BEREIT: ' + status.reason;
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      placeholder.textContent = 'Audioaufnahme wird von diesem Browser nicht unterstuetzt.';
+      return;
+    }
+    stopCurrentAudio();
+    localDictationStream = await navigator.mediaDevices.getUserMedia({audio: true});
+    localDictationChunks = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
+    localDictationRecorder = new MediaRecorder(localDictationStream, mime ? {mimeType: mime} : undefined);
+    localDictationRecorder.ondataavailable = event => { if (event.data && event.data.size) localDictationChunks.push(event.data); };
+    localDictationRecorder.onerror = () => {
+      placeholder.textContent = 'Audioaufnahme fehlgeschlagen.';
+      localDictationBusy = false;
+      stopLocalDictationStream();
+      btn.textContent = 'W';
+    };
+    localDictationRecorder.onstop = async () => {
+      try {
+        const blob = new Blob(localDictationChunks, {type: localDictationRecorder.mimeType || 'audio/webm'});
+        if (!blob.size) throw new Error('Keine Audiodaten aufgenommen.');
+        const form = new FormData();
+        const mediaType = (blob.type || '').toLowerCase();
+        const ext = mediaType.includes('mp4') ? 'mp4' : mediaType.includes('ogg') ? 'ogg' : mediaType.includes('mpeg') ? 'mp3' : mediaType.includes('wav') ? 'wav' : 'webm';
+        form.append('audio', blob, 'dictation.' + ext);
+        const response = await fetch('/api/dictation/transcribe?language=de', {method: 'POST', body: form});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || 'Transkription fehlgeschlagen.');
+        document.getElementById('cmd-input').value = result.text;
+        onInput();
+        placeholder.textContent = 'Diktat bereit. Text pruefen und SENDEN.';
+        document.getElementById('cmd-input').focus();
+      } catch (error) {
+        placeholder.textContent = 'Diktatfehler: ' + String(error.message || error).slice(0, 180);
+      } finally {
+        stopLocalDictationStream();
+        localDictationRecorder = null;
+        localDictationBusy = false;
+        btn.textContent = 'W';
+        btn.classList.remove('listening');
+      }
+    };
+    localDictationRecorder.start(500);
+    btn.classList.add('listening');
+    btn.textContent = '■';
+    placeholder.textContent = 'LOKALES WHISPER: AUFNAHME... Erneut W druecken zum Beenden.';
+  } catch (error) {
+    placeholder.textContent = 'Mikrofon nicht verfuegbar: ' + String(error.message || error).slice(0, 150);
+    stopLocalDictationStream();
+    localDictationBusy = false;
+    btn.textContent = 'W';
+  }
+}
+
+function stopLocalDictationStream() {
+  if (localDictationStream) {
+    for (const track of localDictationStream.getTracks()) track.stop();
+    localDictationStream = null;
+  }
+}
+ 
 /* ══════════════════════════════════════════════════════════
    VOICE LOADING (E5)
 ══════════════════════════════════════════════════════════ */

@@ -157,6 +157,20 @@ async def transcribe_audio(request: Request, audio: UploadFile = File(...), lang
     suffix = Path(audio.filename or "").suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
         raise HTTPException(status_code=415, detail="Unsupported audio extension.")
+    # Reject obviously oversized requests early when the HTTP server supplies Content-Length.
+    # The streamed file-size check below remains authoritative for chunked requests.
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_AUDIO_BYTES + (1024 * 1024):
+                raise HTTPException(status_code=413, detail="Audio request exceeds the upload limit.")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header.")
+
+    selected_language = language.strip().lower() or "de"
+    if selected_language not in {"de", "en", "fr", "es", "it", "nl", "pl", "auto"}:
+        raise HTTPException(status_code=400, detail="Unsupported language code.")
+
     status = get_status()
     if not status.available:
         raise HTTPException(status_code=503, detail=status.reason)
@@ -178,9 +192,6 @@ async def transcribe_audio(request: Request, audio: UploadFile = File(...), lang
             raise HTTPException(status_code=400, detail="Audio file is empty.")
 
         model = _get_model()
-        selected_language = language.strip().lower() or "de"
-        if selected_language not in {"de", "en", "fr", "es", "it", "nl", "pl", "auto"}:
-            raise HTTPException(status_code=400, detail="Unsupported language code.")
         result = await run_in_threadpool(_run_transcription, model, temp_path, selected_language)
         if not result["text"]:
             raise HTTPException(status_code=422, detail="No speech could be recognized.")

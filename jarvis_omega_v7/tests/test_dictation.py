@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core.dictation import ALLOWED_SUFFIXES, configured_model_dir, get_status
+from types import SimpleNamespace
+from core.dictation import ALLOWED_SUFFIXES, _run_transcription, configured_model_dir, get_status
 
 
 class DictationConfigTests(unittest.TestCase):
@@ -38,6 +39,21 @@ class DictationConfigTests(unittest.TestCase):
     def test_model_path_resolves_from_environment(self):
         with patch.dict(os.environ, {"GENESIS_WHISPER_MODEL_DIR": "C:/models/whisper"}):
             self.assertEqual(str(configured_model_dir()), "C:/models/whisper")
+
+    def test_transcription_joins_nonempty_segments_and_uses_auto_language(self):
+        class FakeModel:
+            def transcribe(self, path, **kwargs):
+                self.kwargs = kwargs
+                segments = [SimpleNamespace(text=" Hallo "), SimpleNamespace(text=""), SimpleNamespace(text="Welt.")]
+                return segments, SimpleNamespace(language="de", duration=1.25)
+
+        model = FakeModel()
+        result = _run_transcription(model, "unused.wav", "auto")
+        self.assertEqual(result["text"], "Hallo Welt.")
+        self.assertEqual(result["language"], "de")
+        self.assertEqual(result["segments"], 2)
+        self.assertIsNone(model.kwargs["language"])
+        self.assertTrue(result["local_only"])
 
 
 if __name__ == "__main__":

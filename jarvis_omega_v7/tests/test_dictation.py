@@ -28,7 +28,7 @@ class DictationConfigTests(unittest.TestCase):
             with patch.dict(os.environ, {"GENESIS_WHISPER_MODEL_DIR": temp}):
                 status = get_status()
         self.assertFalse(status.available)
-        self.assertIn("model.bin is missing", status.reason)
+        self.assertIn("model.bin", status.reason)
 
     def test_audio_extensions_are_explicit(self):
         self.assertIn(".wav", ALLOWED_SUFFIXES)

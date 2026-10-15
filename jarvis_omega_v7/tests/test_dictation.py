@@ -86,6 +86,20 @@ class DictationConfigTests(unittest.TestCase):
         self.assertEqual(response.json()["text"], "Guten Tag.")
         self.assertTrue(response.json()["local_only"])
 
+    def test_endpoint_returns_422_when_no_speech_is_recognized(self):
+        class SilentModel:
+            def transcribe(self, path, **kwargs):
+                return [], SimpleNamespace(language="de", duration=0.5)
+
+        ready = DictationStatus(available=True, model_dir="/existing/model", reason="ready")
+        with patch("core.dictation.get_status", return_value=ready), patch("core.dictation._get_model", return_value=SilentModel()):
+            response = self.client.post(
+                "/api/dictation/transcribe",
+                files={"audio": ("silence.webm", b"fake audio bytes", "audio/webm")},
+            )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("No speech", response.json()["detail"])
+
     def test_endpoint_rejects_unsupported_language_before_model_load(self):
         with patch("core.dictation._get_model") as model_loader:
             response = self.client.post(

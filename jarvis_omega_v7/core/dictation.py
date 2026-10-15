@@ -98,6 +98,30 @@ def _get_model() -> Any:
         return _MODEL
 
 
+def _run_transcription(model: Any, temp_path: str, language: str) -> dict[str, Any]:
+    segments, info = model.transcribe(
+        temp_path,
+        language=None if language == "auto" else language,
+        beam_size=5,
+        vad_filter=True,
+        condition_on_previous_text=True,
+    )
+    parts = []
+    for segment in segments:
+        text = (segment.text or "").strip()
+        if text:
+            parts.append(text)
+    transcript = " ".join(parts).strip()
+    return {
+        "text": transcript,
+        "language": getattr(info, "language", language),
+        "duration": getattr(info, "duration", None),
+        "segments": len(parts),
+        "engine": "faster-whisper",
+        "local_only": True,
+    }
+
+
 @router.get("/api/dictation/status", response_model=DictationStatus)
 async def dictation_status() -> DictationStatus:
     return get_status()
@@ -132,30 +156,10 @@ async def transcribe_audio(audio: UploadFile = File(...), language: str = "de") 
         selected_language = language.strip().lower() or "de"
         if selected_language not in {"de", "en", "fr", "es", "it", "nl", "pl", "auto"}:
             raise HTTPException(status_code=400, detail="Unsupported language code.")
-        segments, info = await run_in_threadpool(
-            model.transcribe,
-            temp_path,
-            language=None if selected_language == "auto" else selected_language,
-            beam_size=5,
-            vad_filter=True,
-            condition_on_previous_text=True,
-        )
-        parts = []
-        for segment in segments:
-            text = (segment.text or "").strip()
-            if text:
-                parts.append(text)
-        transcript = " ".join(parts).strip()
-        if not transcript:
+        result = await run_in_threadpool(_run_transcription, model, temp_path, selected_language)
+        if not result["text"]:
             raise HTTPException(status_code=422, detail="No speech could be recognized.")
-        return {
-            "text": transcript,
-            "language": getattr(info, "language", selected_language),
-            "duration": getattr(info, "duration", None),
-            "segments": len(parts),
-            "engine": "faster-whisper",
-            "local_only": True,
-        }
+        return result
     except HTTPException:
         raise
     except Exception as exc:

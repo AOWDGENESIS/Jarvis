@@ -10,7 +10,7 @@ import os
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
@@ -153,7 +153,7 @@ async def dictation_status() -> DictationStatus:
 
 
 @router.post("/api/dictation/transcribe")
-async def transcribe_audio(request: Request, audio: UploadFile = File(...), language: str = "de") -> dict[str, Any]:
+async def transcribe_audio(request: Request, audio: Annotated[UploadFile, File()], language: str = "de") -> dict[str, Any]:
     if not origin_matches_request(request.headers.get("origin"), str(request.url)):
         raise HTTPException(status_code=403, detail="Cross-origin dictation requests are not allowed.")
     suffix = Path(audio.filename or "").suffix.lower()

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 log = logging.getLogger("jarvis.dictation")
@@ -52,11 +53,13 @@ def get_status() -> DictationStatus:
             model_dir=str(model_dir),
             reason="Configured local model directory does not exist; no model will be downloaded.",
         )
-    if not (model_dir / "model.bin").is_file():
+    required_files = ("model.bin", "config.json", "tokenizer.json", "vocabulary.json")
+    missing = [name for name in required_files if not (model_dir / name).is_file()]
+    if missing:
         return DictationStatus(
             available=False,
             model_dir=str(model_dir),
-            reason="model.bin is missing; expected an existing faster-whisper model directory.",
+            reason="Local model directory is incomplete; missing: " + ", ".join(missing),
         )
     try:
         import faster_whisper  # noqa: F401
@@ -129,7 +132,8 @@ async def transcribe_audio(audio: UploadFile = File(...), language: str = "de") 
         selected_language = language.strip().lower() or "de"
         if selected_language not in {"de", "en", "fr", "es", "it", "nl", "pl", "auto"}:
             raise HTTPException(status_code=400, detail="Unsupported language code.")
-        segments, info = model.transcribe(
+        segments, info = await run_in_threadpool(
+            model.transcribe,
             temp_path,
             language=None if selected_language == "auto" else selected_language,
             beam_size=5,

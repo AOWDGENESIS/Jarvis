@@ -69,7 +69,7 @@ class DictationConfigTests(unittest.TestCase):
         async def downstream(scope, receive, send):
             raise AssertionError("Oversized request reached FastAPI route parsing")
 
-        middleware = DictationContentLengthGuard(downstream)
+        middleware = DictationRequestGuard(downstream)
         scope = {
             "type": "http",
             "path": "/api/dictation/transcribe",

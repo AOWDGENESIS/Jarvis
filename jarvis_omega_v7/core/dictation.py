@@ -22,6 +22,7 @@ router = APIRouter(tags=["local-dictation"])
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
 ALLOWED_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".mp4", ".mpeg", ".mpga"}
 _MODEL_LOCK = threading.Lock()
+_INFERENCE_LOCK = threading.Lock()
 _MODEL: Any = None
 _MODEL_PATH: str | None = None
 
@@ -99,27 +100,29 @@ def _get_model() -> Any:
 
 
 def _run_transcription(model: Any, temp_path: str, language: str) -> dict[str, Any]:
-    segments, info = model.transcribe(
-        temp_path,
-        language=None if language == "auto" else language,
-        beam_size=5,
-        vad_filter=True,
-        condition_on_previous_text=True,
-    )
-    parts = []
-    for segment in segments:
-        text = (segment.text or "").strip()
-        if text:
-            parts.append(text)
-    transcript = " ".join(parts).strip()
-    return {
-        "text": transcript,
-        "language": getattr(info, "language", language),
-        "duration": getattr(info, "duration", None),
-        "segments": len(parts),
-        "engine": "faster-whisper",
-        "local_only": True,
-    }
+    # Serialize inference against the singleton model to avoid concurrent access races.
+    with _INFERENCE_LOCK:
+        segments, info = model.transcribe(
+            temp_path,
+            language=None if language == "auto" else language,
+            beam_size=5,
+            vad_filter=True,
+            condition_on_previous_text=True,
+        )
+        parts = []
+        for segment in segments:
+            text = (segment.text or "").strip()
+            if text:
+                parts.append(text)
+        transcript = " ".join(parts).strip()
+        return {
+            "text": transcript,
+            "language": getattr(info, "language", language),
+            "duration": getattr(info, "duration", None),
+            "segments": len(parts),
+            "engine": "faster-whisper",
+            "local_only": True,
+        }
 
 
 @router.get("/api/dictation/status", response_model=DictationStatus)

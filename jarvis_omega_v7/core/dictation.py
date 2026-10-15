@@ -44,9 +44,11 @@ def origin_matches_request(origin: str | None, request_url: str) -> bool:
         target = urlsplit(request_url)
         supplied_port = supplied.port or (443 if supplied.scheme == "https" else 80)
         target_port = target.port or (443 if target.scheme == "https" else 80)
+        loopback_hosts = {"127.0.0.1", "localhost", "::1"}
         return (
             supplied.scheme in {"http", "https"}
             and supplied.scheme == target.scheme
+            and target.hostname in loopback_hosts
             and supplied.hostname == target.hostname
             and supplied_port == target_port
         )

@@ -11,8 +11,9 @@ import tempfile
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
@@ -32,6 +33,25 @@ class DictationStatus(BaseModel):
     local_only: bool = True
     model_dir: str | None = None
     reason: str
+
+
+def origin_matches_request(origin: str | None, request_url: str) -> bool:
+    """Reject browser cross-origin POSTs while allowing non-browser clients without Origin."""
+    if not origin:
+        return True
+    try:
+        supplied = urlsplit(origin)
+        target = urlsplit(request_url)
+        supplied_port = supplied.port or (443 if supplied.scheme == "https" else 80)
+        target_port = target.port or (443 if target.scheme == "https" else 80)
+        return (
+            supplied.scheme in {"http", "https"}
+            and supplied.scheme == target.scheme
+            and supplied.hostname == target.hostname
+            and supplied_port == target_port
+        )
+    except ValueError:
+        return False
 
 
 def configured_model_dir() -> Path | None:
@@ -131,7 +151,9 @@ async def dictation_status() -> DictationStatus:
 
 
 @router.post("/api/dictation/transcribe")
-async def transcribe_audio(audio: UploadFile = File(...), language: str = "de") -> dict[str, Any]:
+async def transcribe_audio(request: Request, audio: UploadFile = File(...), language: str = "de") -> dict[str, Any]:
+    if not origin_matches_request(request.headers.get("origin"), str(request.url)):
+        raise HTTPException(status_code=403, detail="Cross-origin dictation requests are not allowed.")
     suffix = Path(audio.filename or "").suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
         raise HTTPException(status_code=415, detail="Unsupported audio extension.")

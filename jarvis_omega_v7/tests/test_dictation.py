@@ -1,4 +1,5 @@
 """Unit tests for local-only dictation configuration and upload validation."""
+import asyncio
 import os
 import tempfile
 import unittest
@@ -10,6 +11,8 @@ from fastapi.testclient import TestClient
 
 from core.dictation import (
     ALLOWED_SUFFIXES,
+    DictationContentLengthGuard,
+    MAX_AUDIO_BYTES,
     DictationStatus,
     _run_transcription,
     configured_model_dir,
@@ -61,6 +64,27 @@ class DictationConfigTests(unittest.TestCase):
     def test_model_path_resolves_from_environment(self):
         with patch.dict(os.environ, {"GENESIS_WHISPER_MODEL_DIR": "C:/models/whisper"}):
             self.assertEqual(str(configured_model_dir()), "C:/models/whisper")
+
+    def test_content_length_guard_rejects_oversized_upload_before_route(self):
+        async def downstream(scope, receive, send):
+            raise AssertionError("Oversized request reached FastAPI route parsing")
+
+        middleware = DictationContentLengthGuard(downstream)
+        scope = {
+            "type": "http",
+            "path": "/api/dictation/transcribe",
+            "headers": [(b"content-length", str(MAX_AUDIO_BYTES + 2 * 1024 * 1024).encode())],
+        }
+        messages = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            messages.append(message)
+
+        asyncio.run(middleware(scope, receive, send))
+        self.assertEqual(messages[0]["status"], 413)
 
     def test_endpoint_rejects_cross_origin_upload(self):
         response = self.client.post(

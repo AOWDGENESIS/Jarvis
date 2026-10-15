@@ -20,7 +20,7 @@ from core import develop as jarvis_develop
 from core import db as jarvis_db
 from core.voice import jarvis_voice, edge_voice, piper_voice, pyttsx3_voice, EDGE_VOICES_DE
 from core.scanner import omni_scanner, OLLAMA_STATE
-from core.dictation import router as dictation_router
+from core.dictation import DictationContentLengthGuard, router as dictation_router
 
 PORT = 8000
 
@@ -34,6 +34,7 @@ log = logging.getLogger("jarvis.main")
 
 # â”€â”€ App & Brain â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app   = FastAPI(title="Jarvis OMNI v7.6")
+app.add_middleware(DictationContentLengthGuard)
 app.include_router(dictation_router)
 
 # I3/I5: Datenbank initialisieren

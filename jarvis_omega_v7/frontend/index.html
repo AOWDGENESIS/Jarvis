@@ -1346,7 +1346,8 @@ async function toggleLocalDictation() {
         const blob = new Blob(localDictationChunks, {type: localDictationRecorder.mimeType || 'audio/webm'});
         if (!blob.size) throw new Error('Keine Audiodaten aufgenommen.');
         const form = new FormData();
-        const ext = (blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+        const mediaType = (blob.type || '').toLowerCase();
+        const ext = mediaType.includes('mp4') ? 'mp4' : mediaType.includes('ogg') ? 'ogg' : mediaType.includes('mpeg') ? 'mp3' : mediaType.includes('wav') ? 'wav' : 'webm';
         form.append('audio', blob, 'dictation.' + ext);
         const response = await fetch('/api/dictation/transcribe?language=de', {method: 'POST', body: form});
         const result = await response.json();

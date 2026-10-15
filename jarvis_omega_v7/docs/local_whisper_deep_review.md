@@ -74,8 +74,8 @@ The new feature does not send dictation audio to Ollama or a remote speech servi
 
 - GitHub Actions workflow: `.github/workflows/local-dictation-checks.yml`.
 - The CI gate now checks Python compilation, Ruff lint for the new Python modules, JavaScript syntax for the inserted dictation code, and automated API/unit tests.
-- Latest confirmed successful GitHub Actions run before the request-size middleware: Python compile PASS, Ruff PASS, JavaScript syntax PASS, 12 unit/API tests PASS.
-- Request-size middleware and its new regression test are now included; CI must pass again on the final branch head before considering the branch's automated gates green.
+- Latest confirmed successful GitHub Actions run: Python compilation PASS, Ruff PASS, JavaScript syntax PASS, 13 unit/API tests PASS.
+- The latest run includes the early Content-Length guard and its regression test. This confirms the automated gates for the branch head at the time of the run; it does not substitute for Windows acceptance.
 - No merge, release, or deployment was performed.
 - Local Windows acceptance remains open and cannot be inferred from GitHub CI.
 

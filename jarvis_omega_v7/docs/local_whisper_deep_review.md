@@ -73,6 +73,7 @@ The new feature does not send dictation audio to Ollama or a remote speech servi
 ## 4. Verification record
 
 - GitHub Actions workflow: `.github/workflows/local-dictation-checks.yml`.
+- The CI gate now checks Python compilation, Ruff lint for the new Python modules, JavaScript syntax for the inserted dictation code, and automated API/unit tests.
 - Confirmed completed successful run before the final Origin/MIME refinements: compile step PASS and unit-test step PASS.
 - Latest Origin-guard and MIME refinements are being checked by the workflow on the branch; their final run must be green before this PR is considered validated.
 - No merge, release, or deployment was performed.

@@ -63,7 +63,7 @@ The new feature does not send dictation audio to Ollama or a remote speech servi
 
 - Model download is not initiated by the new feature; model loading requests `local_files_only=True`.
 - Upload size is limited to 25 MiB with an early Content-Length guard before multipart parsing, plus a file-size check; file extensions are allow-listed.
-- Browser requests with a different Origin are rejected; non-browser clients without Origin remain supported.
+- Both dictation endpoints reject non-loopback Host headers, including DNS-rebinding-style hostnames. Transcription also rejects cross-origin browser uploads; non-browser clients without Origin remain supported.
 - Temporary audio is removed in a `finally` block.
 - Inference runs in a worker thread and is serialized against the shared model.
 - The transcript is inserted into the input field and is not automatically sent as a JARVIS command.
@@ -75,7 +75,8 @@ The new feature does not send dictation audio to Ollama or a remote speech servi
 - GitHub Actions workflow: `.github/workflows/local-dictation-checks.yml`.
 - The CI gate now checks Python compilation, Ruff lint for the new Python modules, JavaScript syntax for the inserted dictation code, and automated API/unit tests.
 - Latest confirmed successful GitHub Actions run: Python compilation PASS, Ruff PASS, JavaScript syntax PASS, 13 unit/API tests PASS.
-- The latest run includes the early Content-Length guard and its regression test. This confirms the automated gates for the branch head at the time of the run; it does not substitute for Windows acceptance.
+- Latest completed run on commit `7fff2b5`: Python compilation PASS, Ruff PASS, JavaScript syntax PASS, 14 unit/API tests PASS. The request-size and loopback-host guards are covered by regression tests.
+- The CI workflow now also configures Git's initial branch name to suppress the checkout runner's default-branch hint. The workflow must rerun on the updated workflow commit.
 - No merge, release, or deployment was performed.
 - Local Windows acceptance remains open and cannot be inferred from GitHub CI.
 

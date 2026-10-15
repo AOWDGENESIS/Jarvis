@@ -13,7 +13,7 @@ This feature adds a separate local transcription path to the existing JARVIS web
 Before starting JARVIS, set `GENESIS_WHISPER_MODEL_DIR` to an existing model directory. That directory must contain `model.bin`, `config.json`, `tokenizer.json`, and `vocabulary.json`. The model must already be present on disk. For example, in PowerShell for the current session:
 
 ```powershell
-$env:GENESIS_WHISPER_MODEL_DIR = 'F:\\Models\\faster-whisper-small'
+$env:GENESIS_WHISPER_MODEL_DIR = 'F:\Models\faster-whisper-small'
 ```
 
 The example is a path template, not a claim that a model is installed there. Use the actual directory on your machine. Optional settings:
